@@ -117,10 +117,27 @@
 -- 	using(playerid)
 -- join people
 -- 	using(playerid)
--- where total_percent > 20
+-- where total_percent >= 20
 -- 	and batting.yearid = 2016
 -- group by namelast, namefirst, batting.yearid
 -- order by percent_stolen desc;
+
+
+--Abi's query
+-- SELECT playerid, namegiven, ROUND(((sum(sb) * 1.0)/(sum(sb) + sum(cs))) * 100, 2) AS percent_stolen
+-- FROM batting
+-- INNER JOIN people USING (playerid)
+-- WHERE yearid = 2016
+-- GROUP BY playerid, namegiven
+-- having (sum(sb) + sum(cs)) >= 20
+-- ORDER BY percent_stolen DESC;
+
+--Tarik's query
+-- SELECT playerid, yearid, sb, cs,
+-- 	   ROUND( sb * 1.0 / (sb + cs), 2) AS attempts
+-- FROM batting
+-- WHERE (sb + cs) >= 20 AND yearid = 2016
+-- ORDER BY attempts DESC;
 
 -- select namelast, namefirst, sb, cs
 -- from people
@@ -146,7 +163,7 @@
 -- where yearid between 1970 and 2016
 -- 	and wswin = 'N'
 -- group by teamid, yearid, wswin, w
--- order by wins desc;
+-- order by w desc;
 -- 116 wins for SEA for non winners
 
 -- select teamid, yearid, wswin, w 
@@ -154,7 +171,7 @@
 -- where yearid between 1970 and 2016
 -- 	and wswin = 'Y'
 -- group by teamid, yearid, wswin,  w
--- order by wins;
+-- order by w;
 -- 63 wins for LAN for winners
 
 --Madi's query
@@ -163,10 +180,22 @@
 -- WHERE yearid BETWEEN 1970 AND 2016
 -- 	and wswin = 'Y';
 
+--Tarik's query
+-- select teamid, yearid, wswin, w,
+-- 		MAX(w) OVER (PARTITION BY wswin = 'N') AS max_wins_n_ws,
+-- 		MIN(w) OVER (PARTITION BY wswin = 'Y') AS min_wins_y_ws
+-- from teams
+-- WHERE yearid between 1970 AND 2016
+-- GROUP BY yearid, wswin, w, teamid
+-- ORDER BY w DESC;
+
 -- select teamid, yearid, wswin, sum(w) as wins
 -- from teams
 -- where yearid = 1983
 -- group by teamid, yearid, wswin;
+
+
+--player strike 1981
 
 -- 7b. How often from 1970 – 2016 was it the case that a team with the most wins also won the world series? What percentage of the time?
 -- with max_wins as (
@@ -226,10 +255,27 @@
 -- 	on hg.park = parks.park
 -- where year = 2016
 -- 	and (select sum(games)
--- 		from homegames) > 10
+-- 		from homegames) >= 10
 -- group by teams.name, park_name
 -- order by avg_attn desc
 -- limit 5;
+
+-- select team, park, sum(hg.attendance) / sum(hg.games)  as avg_attn
+-- from homegames as hg
+-- where year = 2016
+-- 	and (select sum(games)
+-- 		from homegames) >= 10
+-- group by team, park
+-- order by avg_attn desc;
+
+--Tarik's query
+-- SELECT team, park, park_name,
+-- 		attendance / games  AS avg_attendance
+-- FROM homegames
+-- INNER JOIN parks USING (park)
+-- WHERE year = 2016 AND games >= 10
+-- ORDER BY avg_attendance DESC
+-- LIMIT 5;
 
 -- select teams.name, park_name, sum(hg.attendance) / sum(hg.games)  as avg_attn
 -- from homegames as hg
@@ -301,9 +347,114 @@
 -- where awardid = 'TSN Manager of the Year'
 -- 	and playerid = 'leylaji99';
 
+--Tarik's query (unfinished)
+-- SELECT namefirst, namelast, teamid, name, managershalf.yearid, awardid, awardsmanagers.lgid
+-- FROM managershalf
+-- INNER JOIN awardsmanagers USING (playerid)
+-- INNER JOIN people USING (playerid)
+-- INNER JOIN teams USING (teamid)
+-- WHERE awardid = 'TSN Manager of the Year' AND awardsmanagers.lgid = 'NL'
+-- GROUP BY namefirst, namelast, teamid, name, managershalf.yearid, awardid, awardsmanagers.lgid
+
 -- 10 Find all players who hit their career highest number of home runs in 2016. Consider only players who have played in the league for at least 10 years, and who hit at least one home run in 2016. Report the players' first and last names and the number of home runs they hit in 2016.
-select playerid, max(hr), yearid
-from batting
-where yearid = 2016
-	and hr >= 1
-group by playerid, yearid;
+-- with homeruns as (
+-- 	select playerid, max(hr) as hr, yearid
+-- 	from batting
+-- 	where hr >= 1
+-- 	group by playerid, yearid)
+-- select namefirst, namelast, hrs.hr
+-- from batting as b
+-- join homeruns as hrs
+-- 	using(hr, playerid)
+-- join people
+-- 	using(playerid)
+-- where b.yearid = 2016
+-- 	and (left(coalesce(finalgame,2016::text),4)::numeric - left(debut,4)::numeric) >=10
+-- group by namefirst, namelast, hrs.hr
+-- order by hr desc;
+
+
+--test
+-- select playerid, debut, finalgame, hr, yearid
+-- from people
+-- join batting using(playerid)
+-- where playerid = 'canoro01';
+
+
+
+
+
+-- 11 Is there any correlation between number of wins and team salary? Use data from 2000 and later to answer this question. As you do this analysis, keep in mind that salaries across the whole league tend to increase together, so you may want to look on a year-by-year basis.
+-- select teamid, yearid, sum(salary)::numeric, w
+-- from salaries
+-- join teams
+-- 	using(teamid, yearid)
+-- where yearid >= 2000
+-- group by teamid, yearid, w
+-- having teamid = 'SFN'
+-- order by yearid;
+
+-- select teamid, yearid, sum(w) as wins
+-- from teams
+-- where yearid = 2000
+-- group by teamid, yearid
+-- order by wins desc;
+
+-- select distinct teamid, w
+-- from teams
+-- where yearid = 2000
+
+-- select teamid, sum(salary)
+-- from salaries
+-- where yearid = 2000
+-- 	and teamid = 'SFN'
+-- group by teamid
+
+
+-- 12 In this question, you will explore the connection between number of wins and attendance.
+
+-- 12a Does there appear to be any correlation between attendance at home games and number of wins?
+-- select teamid, yearid, w, attendance
+-- from teams
+-- where teamid = 'NYA'
+-- order by yearid desc;
+
+-- select distinct teamid, min(attendance), max(attendance)
+-- from teams
+-- where teamid = 'NYA'
+-- group by teamid;
+
+-- select teamid, yearid, w, sum(-attendance) over(
+-- 	partition by teamid
+-- 	order by yearid desc
+-- 	rows between 1 preceding and current row
+-- ) as diff
+-- from teams;
+
+-- 12b Do teams that win the world series see a boost in attendance the following year? What about teams that made the playoffs? Making the playoffs means either being a division winner or a wild card winner.
+-- select teamid, yearid, w, wswin,
+-- 	case
+-- 		when DivWin = 'Y' or WCWin = 'Y' then 'Y'
+-- 		else 'N'
+-- 	end as playoffs,
+-- 	attendance
+-- from teams
+-- where teamid = 'NYA'
+-- order by yearid desc;
+
+
+-- 13 It is thought that since left-handed pitchers are more rare, causing batters to face them less often, that they are more effective. Investigate this claim and present evidence to either support or dispute this claim. First, determine just how rare left-handed pitchers are compared with right-handed pitchers. Are left-handed pitchers more likely to win the Cy Young Award? Are they more likely to make it into the hall of fame?
+
+select 
+	round(sum(case when bats = 'L' or bats = 'B' then 1 else 0 end) / count(bats)::numeric,2)
+from people;
+
+select 
+	case 
+		when bats = 'L' then 1
+		else 0
+	end as batting
+from people
+
+select bats
+from people;
