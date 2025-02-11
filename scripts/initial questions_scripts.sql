@@ -374,24 +374,86 @@
 -- order by hr desc;
 
 
+--Tarik's query
+-- (SELECT playerid, namefirst, namelast, appearances.yearid, MAX(hr)
+-- FROM batting
+-- INNER JOIN people USING(playerid)
+-- INNER JOIN appearances USING (playerid)
+-- WHERE (left(coalesce(finalgame,2016::text),4)::numeric - left(debut,4)::numeric) >=10
+-- GROUP BY playerid, namefirst, namelast, appearances.yearid, hr
+-- ORDER BY hr DESC)
+-- --most homeruns where year is greater than or = 2006
+-- INTERSECT  --?
+-- (SELECT playerid, namefirst, namelast, yearid, hr
+-- FROM batting
+-- INNER JOIN people USING(playerid)
+-- WHERE yearid = 2016 AND hr >= 1
+-- group by playerid, namefirst, namelast, yearid, hr)
+-- order by max desc;
+-- --players who scored at least one in 2016
+
+
+--Abi's query
+-- WITH career_hr AS
+-- (SELECT playerid, MAX(hr)
+-- FROM batting
+-- GROUP BY playerid),
+-- players2016 AS
+-- (SELECT playerid, hr
+-- FROM batting
+-- WHERE yearid = 2016 AND HR >= 1),
+-- years_played AS
+-- (SELECT playerid, COUNT(DISTINCT yearid) AS years_played
+-- FROM batting
+-- GROUP BY playerid)
+-- SELECT people.namefirst, people.namelast, batting.hr, years_played.years_played
+-- FROM people
+-- JOIN batting USING (playerid)
+-- JOIN years_played USING (playerid)
+-- WHERE yearid = 2016 AND hr >= 1 AND years_played >= 10
+-- GROUP BY batting.playerid, people.namefirst, people.namelast, batting.hr, years_played.years_played
+-- ORDER BY hr DESC;
+
 --test
 -- select playerid, debut, finalgame, hr, yearid
 -- from people
 -- join batting using(playerid)
--- where playerid = 'canoro01';
+-- where playerid = 'cruzne02';
 
 
 
 
 
 -- 11 Is there any correlation between number of wins and team salary? Use data from 2000 and later to answer this question. As you do this analysis, keep in mind that salaries across the whole league tend to increase together, so you may want to look on a year-by-year basis.
--- select teamid, yearid, sum(salary)::numeric, w
+
+-- Definitely some correlation between wins and salary, but not a dramatic 1-1 association. The greatest jumps in data seem to be either due to standard league salary increases or other factors, but even still, wins do seem to have a minor impact on salary, increasing as winning or losing streaks continue.
+
+-- select teamid, yearid, sum(salary)::numeric::money as total_salary, w
 -- from salaries
 -- join teams
 -- 	using(teamid, yearid)
 -- where yearid >= 2000
 -- group by teamid, yearid, w
 -- having teamid = 'SFN'
+-- order by yearid;
+
+
+-- select teamid, yearid, sum(salary)::numeric::money as total_salary, w
+-- from salaries
+-- join teams
+-- 	using(teamid, yearid)
+-- where yearid >= 2000
+-- group by teamid, yearid, w
+-- having teamid = 'PHI'
+-- order by yearid;
+
+-- select teamid, yearid, sum(salary)::numeric::money as total_salary, w
+-- from salaries
+-- join teams
+-- 	using(teamid, yearid)
+-- where yearid >= 2000
+-- group by teamid, yearid, w
+-- having teamid = 'PHI' or teamid = 'SFN' or teamid = 'COL'
 -- order by yearid;
 
 -- select teamid, yearid, sum(w) as wins
@@ -410,13 +472,24 @@
 -- 	and teamid = 'SFN'
 -- group by teamid
 
+-- SELECT yearid,
+--        teamid,
+--        CAST(CAST(AVG(salary) AS numeric) AS money) AS avg_salary_money
+-- FROM salaries
+-- GROUP BY yearid, teamid
+-- ORDER BY yearid;
+
 
 -- 12 In this question, you will explore the connection between number of wins and attendance.
 
 -- 12a Does there appear to be any correlation between attendance at home games and number of wins?
+
+--Definitely correlation between wins and attendance. Typically if a team starts doing good or bad, the year after will start to reflect as much in attendance, though if they start to tred or even out, then so will the attendance rates.
+
 -- select teamid, yearid, w, attendance
 -- from teams
--- where teamid = 'NYA'
+-- where teamid = 'PHI' or teamid = 'SFN' or teamid = 'COL'
+-- 	and yearid >= 1950
 -- order by yearid desc;
 
 -- select distinct teamid, min(attendance), max(attendance)
@@ -432,6 +505,9 @@
 -- from teams;
 
 -- 12b Do teams that win the world series see a boost in attendance the following year? What about teams that made the playoffs? Making the playoffs means either being a division winner or a wild card winner.
+
+--Playoffs or WS doesn't seem to make as much of an impact as simple winning streaks to attendance. The only time attendance seemed to move significally alongside WS or PO wins was when that team was also having a winning streak over the last few years.
+
 -- select teamid, yearid, w, wswin,
 -- 	case
 -- 		when DivWin = 'Y' or WCWin = 'Y' then 'Y'
@@ -439,22 +515,62 @@
 -- 	end as playoffs,
 -- 	attendance
 -- from teams
--- where teamid = 'NYA'
+-- where teamid = 'PHI' or teamid = 'SFN' or teamid = 'COL'
 -- order by yearid desc;
 
 
 -- 13 It is thought that since left-handed pitchers are more rare, causing batters to face them less often, that they are more effective. Investigate this claim and present evidence to either support or dispute this claim. First, determine just how rare left-handed pitchers are compared with right-handed pitchers. Are left-handed pitchers more likely to win the Cy Young Award? Are they more likely to make it into the hall of fame?
 
-select 
-	round(sum(case when bats = 'L' or bats = 'B' then 1 else 0 end) / count(bats)::numeric,2)
-from people;
+-- No, it doesn't seem as though being left handed or ambidexterous are decidedly more effective. About 34% of league players are left or both handed which is nearly equivalent to the number of Cy Young award winners. Comparatively, there is a slightly higher population in the Hall of fame at 40%, but that isn't an out of reach number. Overall, comparing these results to the population in the league, left handed or ambidexteriousness doesn't seem to result in unfair advantage or effectiveness.
 
-select 
-	case 
-		when bats = 'L' then 1
-		else 0
-	end as batting
-from people
 
-select bats
-from people;
+-- select 
+-- 	round(sum(case when bats = 'L' or bats = 'B' then 1 else 0 end) * 1.0 / count(bats),2)
+-- from people;
+-- -- 34% of batters are left handed or both
+
+
+-- select 
+-- 	round(sum(case when bats = 'L' or bats = 'B' then 1 else 0 end) * 1.0 / count(bats),2)
+-- from people
+-- join awardsplayers
+-- 	using(playerid)
+-- where awardid = 'Cy Young Award';
+-- -- 31% of Cy Young Awards have gone to left handed or both handed batters
+
+
+-- select 
+-- 	round(sum(case when bats = 'L' or bats = 'B' then 1 else 0 end) * 1.0 / count(bats),2)
+-- from people
+-- join halloffame
+-- 	using(playerid)
+-- where inducted = 'Y';
+-- -- 40% of hall of fame inductees have been left or both handed.
+
+
+-- select 
+-- 	case 
+-- 		when bats = 'L' then 1
+-- 		else 0
+-- 	end as batting
+-- from people
+
+
+-- select bats
+-- from people;
+
+-- select playerid, awardid, bats
+-- from awardsplayers
+-- join people
+-- 	using(playerid)
+-- where awardid = 'Cy Young Award';
+
+-- select distinct playerid, bats
+-- from halloffame
+-- join people
+-- 	using(playerid)
+-- where bats is not null;
+
+-- select *
+-- from halloffame
+-- where playerid = 'sislege01';
