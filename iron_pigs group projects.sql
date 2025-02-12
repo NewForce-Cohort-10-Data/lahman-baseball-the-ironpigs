@@ -18,18 +18,27 @@ INNER JOIN people USING (playerid)
 WHERE playerid = 'gaedeed01'
 LIMIT 1;
 
+-- To show height
+SELECT pe.namefirst, pe.namelast, pe.height, a.g_all AS games_played, t.name AS team
+FROM people pe
+INNER JOIN appearances a ON pe.playerid = a.playerid
+INNER JOIN teams t ON a.teamid = t.teamid
+WHERE pe.height = (SELECT MIN(height) FROM people)
+LIMIT 1;
+
+
 -- 3.Find all players in the database who played at Vanderbilt University. Create a list showing each player’s first and last names as well as the total salary they earned in the major leagues. Sort this list in descending order by the total salary earned. Which Vanderbilt player earned the most money in the majors?
-select schoolname, namelast, namefirst, sum(salary)::int::money as total_salary
-from collegeplaying
-join schools
-	using(schoolid)
-join people
-	using(playerid)
-join salaries
-	using(playerid)
-where schoolname = 'Vanderbilt University'
-group by schoolname, namelast, namefirst
-order by total_salary desc;
+SELECT schoolname, namelast, namefirst, SUM(salary)::int::money as total_salary
+FROM collegeplaying
+JOIN schools
+	USING(schoolid)
+JOIN people
+	USING(playerid)
+JOIN salaries
+	USING(playerid)
+WHERE schoolname = 'Vanderbilt University'
+GROUP BY schoolname, namelast, namefirst
+ORDER BY total_salary DESC;
 
 -- 4.Using the fielding table, group players into three groups based on their position: label players with position OF as "Outfield", those with position "SS", "1B", "2B", and "3B" as "Infield", and those with position "P" or "C" as "Battery". Determine the number of putouts made by each of these three groups in 2016
 SELECT *
@@ -70,30 +79,27 @@ ORDER BY decade;
 -- Home runs per decade had an increase in 1950. Strikeout avg had an increase in 1960.
 
 -- 6.Find the player who had the most success stealing bases in 2016, where success is measured as the percentage of stolen base attempts which are successful. (A stolen base attempt results either in a stolen base or being caught stealing.) Consider only players who attempted at least 20 stolen bases.
-SELECT 
-    p.namefirst || ' ' || p.namelast AS player,
-    b.playerid,
-    ROUND(1.0 * SUM(b.sb) / (SUM(b.sb) + SUM(b.cs)), 3) AS steal_rate,
-    SUM(b.sb) + SUM(b.cs) AS total_attempts
-FROM batting b
-JOIN people p ON b.playerid = p.playerid
-WHERE b.yearid = 2016
-GROUP BY b.playerid, p.namefirst, p.namelast
-HAVING SUM(b.sb) + SUM(b.cs) >= 20
-ORDER BY steal_rate DESC
-LIMIT 1;
 
--- ALL ON SAME TABLE
+-- only returning 47 rows when it should be 50. It was missing having
+SELECT playerid, yearid, sb, cs,
+    sb * 1.0 / (sb + cs) AS attempts
+FROM batting
+WHERE (sb + cs) >= 20 
+    AND yearid = 2016
+GROUP BY playerid, yearid, sb, cs
+ORDER BY attempts DESC;
+
+
 SELECT 
     playerid,
     ROUND(1.0 * SUM(sb) / (SUM(sb) + SUM(cs)), 3) AS steal_rate,
-    SUM(sb) + SUM(cs) AS total_attempts
+    SUM(sb) + SUM(cs) 
 FROM batting
 WHERE yearid = 2016
 GROUP BY playerid
 HAVING SUM(sb) + SUM(cs) >= 20
 ORDER BY steal_rate DESC
-LIMIT 1;
+
 
 --7. From 1970 – 2016, what is the largest number of wins for a team that did not win the world series? What is the smallest number of wins for a team that did win the world series? Doing this will probably result in an unusually small number of wins for a world series champion – determine why this is the case. Then redo your query, excluding the problem year. How often from 1970 – 2016 was it the case that a team with the most wins also won the world series? What percentage of the time?
 select teamid, yearid, wswin, sum(w) as wins
@@ -103,32 +109,29 @@ where yearid between 1970 and 2016
 group by teamid, yearid, wswin
 order by wins;
 
+-- Isabelle
+-- SELECT teamid, w AS smallest_wins
+-- FROM teams
+-- WHERE yearid BETWEEN 1970 AND 2016
+-- AND wswin = 'Y'
+-- ORDER BY w ASC
+-- LIMIT 1;
+
 -- Smallest
-SELECT MIN(w) AS smallest_wins_world_series_winner
+SELECT teamid, MIN(w) AS smallest
 FROM teams
 WHERE yearid BETWEEN 1970 AND 2016
-	and wswin = 'Y'
-
-SELECT teamid, w AS smallest_wins
-FROM teams
-WHERE yearid BETWEEN 1970 AND 2016
-AND wswin = 'Y'
-ORDER BY w ASC
-LIMIT 1;
-
+  AND wswin = 'Y'
+GROUP BY teamid
+ORDER BY smallest ASC;
 
 -- Largest  
-SELECT MAX(w) AS largest_wins_world_series_winner
+SELECT teamid, MAX(w) AS largest
 FROM teams
 WHERE yearid BETWEEN 1970 AND 2016
-	and wswin = 'N';
-
-SELECT teamid, w AS smallest_wins
-FROM teams
-WHERE yearid BETWEEN 1970 AND 2016
-AND wswin = 'N'
-ORDER BY w DESC
-LIMIT 1;	
+  AND wswin = 'N'
+GROUP BY teamid
+ORDER BY largest DESC;
 
 -- Isabelle
 with max_wins as (
@@ -145,31 +148,16 @@ from teams
 join max_wins as mw
 	using(yearid, w);
 
-SELECT 
-    (COUNT(*) * 100.0 / (SELECT COUNT(*) FROM teams WHERE yearid BETWEEN 1970 AND 2016)) AS win_percentage
-FROM teams t
-WHERE yearid BETWEEN 1970 AND 2016
-AND EXISTS (
-    SELECT 1
-    FROM world_series ws
-    WHERE ws.yearid = t.yearid
-    AND ws.teamid = t.teamid
-)
-AND t.w = (
-    SELECT MAX(w)
-    FROM teams
-    WHERE yearid = t.yearid
-);
 
 -- 8.Using the attendance figures from the homegames table, find the teams and parks which had the top 5 average attendance per game in 2016 (where average attendance is defined as total attendance divided by number of games). Only consider parks where there were at least 10 games played. Report the park name, team name, and average attendance. Repeat for the lowest 5 average attendance.
 -- part 1
 SELECT 
     park, 
     team, 
-    ROUND(SUM(attendance) / SUM(games), 2) AS avg_attd
+    SUM(attendance) / SUM(games) AS avg_attd
 FROM homegames
 WHERE year = 2016
-GROUP BY park, team
+GROUP BY team, park
 HAVING SUM(games) >= 10
 ORDER BY avg_attd DESC
 LIMIT 5;
@@ -178,7 +166,7 @@ LIMIT 5;
 SELECT 
     park, 
     team, 
-    ROUND(SUM(attendance) / SUM(games), 2) AS avg_attd
+    SUM(attendance) / SUM(games) AS avg_attd
 FROM homegames
 WHERE year = 2016
 GROUP BY park, team
@@ -186,4 +174,86 @@ HAVING SUM(games) >= 10
 ORDER BY avg_attd ASC
 LIMIT 5;
 
+-- ISABELLE
+select team, park, sum(hg.attendance) / sum(hg.games)  as avg_attn
+from homegames as hg
+where year = 2016
+	and (select sum(games)
+		from homegames) >= 10
+group by team, park
+order by avg_attn desc;
+
+
 -- 9.Which managers have won the TSN Manager of the Year award in both the National League (NL) and the American League (AL)? Give their full name and the teams that they were managing when they won the award.
+-- Isabelle
+with nl_al_managers as (
+	(select distinct playerid, awardid
+	from awardsmanagers
+	where awardid = 'TSN Manager of the Year'
+		and lgid = 'NL')
+	intersect
+	(select distinct playerid, awardid
+	from awardsmanagers
+	where awardid = 'TSN Manager of the Year'
+		and lgid = 'AL'))
+select namelast, namefirst, teams.name, am.yearid, awardid, am.lgid
+from awardsmanagers as am
+join nl_al_managers as na
+	using(playerid, awardid)
+join people
+	using(playerid)
+join managers
+	using(playerid, yearid)
+join teams
+	using(teamid, yearid);
+
+-- 10.Find all players who hit their career highest number of home runs in 2016. Consider only players who have played in the league for at least 10 years, and who hit at least one home run in 2016. Report the players' first and last names and the number of home runs they hit in 2016.
+WITH career_hr AS
+(SELECT playerid, MAX(hr)
+FROM batting
+		GROUP BY playerid),
+players2016 AS
+(SELECT playerid, hr
+FROM batting
+		WHERE yearid = 2016 AND HR > 0),
+years_played AS
+(SELECT playerid, COUNT(DISTINCT yearid) AS years_played
+FROM batting
+GROUP BY playerid)
+SELECT people.namefirst, people.namelast, batting.hr, years_played.years_played
+FROM people
+		JOIN batting USING (playerid)
+		JOIN years_played USING (playerid)
+		WHERE yearid = 2016 AND hr > 0 AND years_played >= 10
+GROUP BY batting.playerid, people.namefirst, people.namelast, batting.hr, years_played.years_played
+ORDER BY hr DESC;
+
+-- 11.Is there any correlation between number of wins and team salary? Use data from 2000 and later to answer this question. As you do this analysis, keep in mind that salaries across the whole league tend to increase together, so you may want to look on a year-by-year basis.
+
+-- Isabelle
+-- select teamid, yearid, sum(salary)::numeric ::money as total_salary, w
+-- from salaries
+-- join teams
+-- 	using(teamid, yearid)
+-- where yearid >= 2000
+-- group by teamid, yearid, w
+-- having teamid = 'SFN'
+-- order by yearid;
+
+SELECT yearid, 
+       teamid, 
+       CAST(CAST(AVG(salary) AS numeric) AS money) AS avg_salary
+FROM salaries
+GROUP BY yearid, teamid
+ORDER BY yearid;
+
+
+SELECT sa.yearid, 
+       sa.teamid, 
+       CAST(CAST(AVG(sa.salary) AS numeric) AS money) AS avg_salary,
+       te.w
+FROM salaries sa
+JOIN teams te ON sa.yearid = te.yearid AND sa.teamid = te.teamid
+WHERE sa.yearid >= 2000
+GROUP BY sa.yearid, sa.teamid, te.w
+ORDER BY sa.yearid DESC; 
