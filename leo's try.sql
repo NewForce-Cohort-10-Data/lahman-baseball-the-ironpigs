@@ -1,5 +1,9 @@
 What range of years for baseball games played does the provided database cover?
-
+SELECT 
+    MAX(yearID) AS max_year,
+    MIN(yearID) AS min_year
+FROM teams;
+1871-2016
 Find the name and height of the shortest player in the database. How many games did he play in? What is the name of the team for which he played?
 SELECT playerid, namegiven, g_all AS games_played, teamid, teams.name AS team
 FROM appearances
@@ -126,15 +130,92 @@ select *
 from  homegames
 
 Which managers have won the TSN Manager of the Year award in both the National League (NL) and the American League (AL)? Give their full name and the teams that they were managing when they won the award.
-Find all players who hit their career highest number of home runs in 2016. Consider only players who have played in the league for at least 10 years, and who hit at least one home run in 2016. Report the players' first and last names and the number of home runs they hit in 2016.
+SELECT namefirst, namelast, teamid, name, managershalf.yearid, awardid, awardsmanagers.lgid
+FROM managershalf
+INNER JOIN awardsmanagers USING (playerid)
+INNER JOIN people USING (playerid)
+INNER JOIN teams USING (teamid)
+WHERE awardid = 'TSN Manager of the Year' AND awardsmanagers.lgid = 'NL'
 
+SELECT 
+    nameFirst, 
+    nameLast, 
+    teamID, 
+    name, 
+    managershalf.yearID, 
+    awardID, 
+    awardsmanagers.lgID
+FROM managershalf
+INNER JOIN awardsmanagers USING (playerID)
+INNER JOIN people USING (playerID)
+INNER JOIN teams USING (teamID)
+WHERE awardID = 'TSN Manager of the Year' 
+AND awardsmanagers.lgID IN ('NL', 'AL')  
+GROUP BY nameFirst, nameLast, teamID, name, managershalf.yearID, awardID, awardsmanagers.lgID;
+
+
+Find all players who hit their career highest number of home runs in 2016. Consider only players who have played in the league for at least 10 years, and who hit at least one home run in 2016. Report the players' first and last names and the number of home runs they hit in 2016.
+WITH career_hr AS (SELECT playerid, MAX(hr) AS max_hr
+    FROM batting
+    GROUP BY playerid),
+years_played AS (SELECT playerid, COUNT(DISTINCT yearid) AS years_played
+    FROM batting
+    GROUP BY playerid)
+SELECT 
+    p.namefirst, 
+    p.namelast, 
+    b.hr, 
+    yp.years_played
+FROM people AS p
+JOIN batting AS b USING (playerid)
+JOIN years_played AS yp USING (playerid)
+WHERE b.yearid = 2016 
+    AND b.hr > 0 
+    AND yp.years_played >= 10
+ORDER BY b.hr DESC;
 
 Open-ended questions
 Is there any correlation between number of wins and team salary? Use data from 2000 and later to answer this question. As you do this analysis, keep in mind that salaries across the whole league tend to increase together, so you may want to look on a year-by-year basis.
+
+There dosn't seem to be a direct corrilation between wins and salery. Some teams just get paid more. I would asume that maybe due to views or attendence. ( SEE PIVIOT TABLE)
+
 In this question, you will explore the connection between number of wins and attendance.
 Does there appear to be any correlation between attendance at home games and number of wins?
+How I would solve problem- I would total up my wind and looses per team per year, then go to my homgames table total up attendence for the diffent teams and years and compair that to my teams colloum. At this point I would have a general over look of attencednc per team per year( if i go back and keep the L coloum from my teams table I could also coalculate the persentage of homegames won and lost per year over , showing the teams performance.
+
+
 Do teams that win the world series see a boost in attendance the following year? What about teams that made the playoffs? Making the playoffs means either being a division winner or a wild card winner.
+This question stumped me at first because i had a hard time finding where the the names of these " awards" whereonce i realized I figured I could join my tables ( i was considering using three tables)
 It is thought that since left-handed pitchers are more rare, causing batters to face them less often, that they are more effective. Investigate this claim and present evidence to either support or dispute this claim. First, determine just how rare left-handed pitchers are compared with right-handed pitchers. Are left-handed pitchers more likely to win the Cy Young Award? Are they more likely to make it into the hall of fame?
+
+SELECT 
+    COUNT(*) FILTER (WHERE throws = 'R') AS R,
+    COUNT(*) FILTER (WHERE throws = 'L') AS L     =about 25%
+FROM people; 
+
+SELECT 
+    h.playerID, 
+    p.throws
+FROM HallOfFame AS h
+JOIN People AS p USING (playerID);
+SELECT 
+    p.nameFirst, 
+    p.nameLast, 
+    p.throws, 
+    h.* 
+FROM People AS p
+FULL JOIN HallOfFame AS h USING (playerID);
+
+SELECT 
+    COUNT(*) FILTER (WHERE p.throws = 'R') AS count_R,
+    COUNT(*) FILTER (WHERE p.throws = 'L') AS count_L,                = about 25%
+    COUNT(*) FILTER (WHERE p.throws IS NULL) AS count_NULL
+FROM People AS p
+FULL JOIN HallOfFame AS h USING (playerID);
+
+Checking the percentage of over all ledt handed people in my peoples table to the percent in my hall of fames table and they are ablot the same. Leading to my conclusion that I 
+dispute this claim that since left-handed pitchers are more rare, they cause the batters to face them less oftenmaking them more effective. Unless all the null values after combining my people and hall of fame chart are left handed. In that case I would then agree. Because the persentage of null values + l would equal about 30% of my hall of fames tabe being left handed compaired to the 25% of over all players. 
+
 
 
 
